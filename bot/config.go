@@ -12,6 +12,7 @@ type Config struct {
 	Dev         bool   `yaml:"dev"`
 	TelegramKey string `yaml:"telegram_key"`
 	DbURI       string `yaml:"db_uri"`
+	GroqAPIKey  string `yaml:"groq_api_key"`
 }
 
 // Load method loads configuration file to Config struct

@@ -20,6 +20,8 @@ func init() {
 	db = initDb()
 
 	b = initTelegram(conf.TelegramKey)
+
+	initMonitor()
 }
 
 func Start() {
