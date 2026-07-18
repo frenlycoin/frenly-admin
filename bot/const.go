@@ -6,4 +6,7 @@ const (
 
 	// Monitor loop interval in seconds.
 	MonitorTick = 10
+
+	// Telegram channel ID for development news updates.
+	FrenlyDevs = int64(-1002261097117)
 )
