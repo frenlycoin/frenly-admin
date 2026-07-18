@@ -19,16 +19,13 @@ func init() {
 
 	// db = initDb()
 
-	// b = initTelegram(conf.TelegramKey)
+	b = initTelegram(conf.TelegramKey)
 }
 
 func Start() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	// logs("Bot started successfully. 🚀")
-	log.Println("Bot started successfully. 🚀")
+	logs("Bot started successfully. 🚀")
 
-	// initTemp()
-
-	// b.Start()
+	b.Start()
 }
