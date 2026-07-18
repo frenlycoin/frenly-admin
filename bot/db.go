@@ -21,7 +21,7 @@ func initDb() *gorm.DB {
 		loge(err)
 	}
 
-	if err := db.AutoMigrate(); err != nil {
+	if err := db.AutoMigrate(&Channel{}, &KeyValue{}); err != nil {
 		panic(err.Error())
 	}
 
