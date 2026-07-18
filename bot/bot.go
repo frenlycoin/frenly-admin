@@ -17,7 +17,7 @@ var db *gorm.DB
 func init() {
 	conf = initConfig()
 
-	// db = initDb()
+	db = initDb()
 
 	b = initTelegram(conf.TelegramKey)
 }
