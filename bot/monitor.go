@@ -152,12 +152,12 @@ func (m *Monitor) publishAdminPost(post AdminPost, now time.Time) error {
 
 func (m *Monitor) publishAdminPostsRoutine() {
 	rand.Seed(time.Now().UnixNano())
-	delay := time.Hour + time.Duration(rand.Int63n(int64(time.Hour)))
+	delay := (time.Hour * 2) + time.Duration(rand.Int63n(int64(time.Hour)))
 	time.Sleep(delay)
 
 	for {
 		m.publishAdminPostsIfNeeded()
-		delay = time.Hour + time.Duration(rand.Int63n(int64(time.Hour)))
+		delay = (time.Hour * 2) + time.Duration(rand.Int63n(int64(time.Hour)))
 		time.Sleep(delay)
 	}
 }
