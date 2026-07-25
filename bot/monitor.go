@@ -24,7 +24,12 @@ func (m *Monitor) start() {
 }
 
 func (m *Monitor) generateAdminPostsIfNeeded() {
-	lastDay, err := getLastFrenlyDevPostDay()
+	m.generateDevPostsIfNeeded()
+	m.generateTonPostsIfNeeded()
+}
+
+func (m *Monitor) generateDevPostsIfNeeded() {
+	lastDay, err := getLastPostDay("lastFrenlyDevPost")
 	if err != nil {
 		logs(fmt.Sprintf("failed to load last FrenlyDev post day: %v", err))
 		return
@@ -47,14 +52,74 @@ func (m *Monitor) generateAdminPostsIfNeeded() {
 		if trimmed == "" {
 			continue
 		}
-		if err := db.Create(&AdminPost{Text: trimmed}).Error; err != nil {
+		if err := db.Create(&AdminPost{Channel: FrenlyDevs, Text: trimmed}).Error; err != nil {
 			logs(fmt.Sprintf("failed to save admin post: %v", err))
 		}
 	}
 
-	if err := saveLastFrenlyDevPostDay(today); err != nil {
+	if err := saveLastPostDay("lastFrenlyDevPost", today); err != nil {
 		logs(fmt.Sprintf("failed to save last FrenlyDev post day: %v", err))
 	}
+}
+
+func (m *Monitor) generateTonPostsIfNeeded() {
+	lastDay, err := getLastPostDay("lastFrenlyTonPost")
+	if err != nil {
+		logs(fmt.Sprintf("failed to load last FrenlyTon post day: %v", err))
+		return
+	}
+
+	today := time.Now().UTC().Format("2006-01-02")
+	if lastDay == today {
+		return
+	}
+
+	news, err := getTonNews()
+	if err != nil {
+		logs(fmt.Sprintf("failed to generate TON news: %v", err))
+		return
+	}
+
+	posts := strings.Split(news, "\n\n")
+	for _, post := range posts {
+		trimmed := strings.TrimSpace(post)
+		if trimmed == "" {
+			continue
+		}
+		if err := db.Create(&AdminPost{Channel: FrenlyTon, Text: trimmed}).Error; err != nil {
+			logs(fmt.Sprintf("failed to save TON admin post: %v", err))
+		}
+	}
+
+	if err := saveLastPostDay("lastFrenlyTonPost", today); err != nil {
+		logs(fmt.Sprintf("failed to save last FrenlyTon post day: %v", err))
+	}
+}
+
+func getLastPostDay(key string) (string, error) {
+	var kv KeyValue
+	res := db.Where("key = ?", key).First(&kv)
+	if res.Error != nil {
+		if res.Error == gorm.ErrRecordNotFound {
+			return "", nil
+		}
+		return "", res.Error
+	}
+	return kv.ValueStr, nil
+}
+
+func saveLastPostDay(key string, day string) error {
+	var kv KeyValue
+	res := db.Where("key = ?", key).First(&kv)
+	if res.Error != nil {
+		if res.Error != gorm.ErrRecordNotFound {
+			return res.Error
+		}
+		kv = KeyValue{Key: key}
+	}
+
+	kv.ValueStr = day
+	return db.Save(&kv).Error
 }
 
 func getLastFrenlyDevPostDay() (string, error) {
@@ -88,28 +153,21 @@ func (m *Monitor) publishPendingTodayPostsOnStartup() {
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
-	var posts []AdminPost
-	if err := db.Where("published = ? AND created_at >= ? AND created_at < ?", false, dayStart, dayEnd).Find(&posts).Error; err != nil {
-		logs(fmt.Sprintf("failed to load pending admin posts for startup publish: %v", err))
-		return
-	}
+	channels := []int64{FrenlyDevs, FrenlyTon}
+	for _, ch := range channels {
+		var post AdminPost
+		res := db.Where("channel = ? AND published = ? AND created_at >= ? AND created_at < ?", ch, false, dayStart, dayEnd).First(&post)
+		if res.Error != nil {
+			if res.Error == gorm.ErrRecordNotFound {
+				continue
+			}
+			logs(fmt.Sprintf("failed to load pending admin post for channel %d: %v", ch, res.Error))
+			continue
+		}
 
-	if len(posts) == 0 {
-		return
-	}
-
-	var unpublishedCount int64
-	if err := db.Model(&AdminPost{}).Where("published = ? AND created_at >= ? AND created_at < ?", false, dayStart, dayEnd).Count(&unpublishedCount).Error; err != nil {
-		logs(fmt.Sprintf("failed to count pending admin posts: %v", err))
-		return
-	}
-
-	if unpublishedCount == 0 {
-		return
-	}
-
-	if err := m.publishAdminPost(posts[0], now); err != nil {
-		logs(fmt.Sprintf("failed to publish startup admin post: %v", err))
+		if err := m.publishAdminPost(post, now); err != nil {
+			logs(fmt.Sprintf("failed to publish startup admin post for channel %d: %v", ch, err))
+		}
 	}
 }
 
@@ -118,25 +176,28 @@ func (m *Monitor) publishAdminPostsIfNeeded() {
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
-	var posts []AdminPost
-	if err := db.Where("published = ? AND created_at >= ? AND created_at < ?", false, dayStart, dayEnd).Find(&posts).Error; err != nil {
-		logs(fmt.Sprintf("failed to load pending admin posts: %v", err))
-		return
-	}
+	channels := []int64{FrenlyDevs, FrenlyTon}
+	for _, ch := range channels {
+		var posts []AdminPost
+		if err := db.Where("channel = ? AND published = ? AND created_at >= ? AND created_at < ?", ch, false, dayStart, dayEnd).Find(&posts).Error; err != nil {
+			logs(fmt.Sprintf("failed to load pending admin posts for channel %d: %v", ch, err))
+			continue
+		}
 
-	if len(posts) == 0 {
-		return
-	}
+		if len(posts) == 0 {
+			continue
+		}
 
-	rand.Seed(now.UnixNano())
-	chosen := posts[rand.Intn(len(posts))]
-	if err := m.publishAdminPost(chosen, now); err != nil {
-		logs(fmt.Sprintf("failed to publish admin post: %v", err))
+		rand.Seed(now.UnixNano())
+		chosen := posts[rand.Intn(len(posts))]
+		if err := m.publishAdminPost(chosen, now); err != nil {
+			logs(fmt.Sprintf("failed to publish admin post for channel %d: %v", ch, err))
+		}
 	}
 }
 
 func (m *Monitor) publishAdminPost(post AdminPost, now time.Time) error {
-	rec := &telebot.Chat{ID: FrenlyDevs}
+	rec := &telebot.Chat{ID: post.Channel}
 	if _, err := b.Send(rec, post.Text, telebot.NoPreview); err != nil {
 		return err
 	}

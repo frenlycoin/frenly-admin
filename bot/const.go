@@ -9,4 +9,7 @@ const (
 
 	// Telegram channel ID for development news updates.
 	FrenlyDevs = int64(-1002261097117)
+
+	// Telegram channel ID for TON news updates.
+	FrenlyTon = int64(-1002478203272)
 )
