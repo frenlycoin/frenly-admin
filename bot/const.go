@@ -15,4 +15,6 @@ const (
 
 	// Telegram channel ID for crypto news.
 	FrenlyCrypto = int64(-1004461913187)
+
+	CryptoPrices = "BTC ETH BNB XRP SOL TRX HYPE DOGE LEO ZEC XMR XLM ADA CC BCH GRAM LTC HBAR AVAX SUI"
 )

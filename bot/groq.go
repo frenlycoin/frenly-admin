@@ -69,48 +69,6 @@ func getTonNews() (string, error) {
 	return groqResp.Choices[0].Message.Content, nil
 }
 
-func getCryptoNews() (string, error) {
-	reqBody := GroqRequest{
-		Model: "openai/gpt-oss-120b",
-		Messages: []Message{
-			{Role: "system", Content: "You are a crypto news reporter who specializes in the latest developments in the cryptocurrency and blockchain industry. You report on real, specific events and market movements with factual precision. Cover topics including Bitcoin, Ethereum, altcoins, DeFi protocols, NFT market trends, regulatory updates, exchange developments, institutional adoption, and major blockchain upgrades. Write in a professional news style. Each news item must be a self-contained paragraph of 2-4 sentences with specific details like names, numbers, and dates where appropriate."},
-			{Role: "user", Content: "Write exactly 10 distinct crypto news items covering recent major developments in the cryptocurrency world. Separate each item by a blank line. Each item must be a substantive paragraph of 2-4 sentences with specific details. Cover diverse topics: Bitcoin, Ethereum, DeFi, NFTs, regulation, exchange news, institutional moves, Layer-2 projects, meme coins, and blockchain upgrades. Do NOT number them and do NOT include titles. Just the paragraph text separated by blank lines. You must produce all 10 items — do not stop early."},
-		},
-		Temperature: 0.7,
-		MaxTokens:   2000,
-	}
-
-	jsonData, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", err
-	}
-
-	req, err := http.NewRequest("POST", "https://api.groq.com/openai/v1/chat/completions", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Authorization", "Bearer "+conf.GroqAPIKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	var groqResp GroqResponse
-	if err := json.NewDecoder(resp.Body).Decode(&groqResp); err != nil {
-		return "", err
-	}
-
-	if len(groqResp.Choices) == 0 {
-		return "", fmt.Errorf("empty response from API")
-	}
-
-	return groqResp.Choices[0].Message.Content, nil
-}
-
 func getProgrammingAdvice() (string, error) {
 	reqBody := GroqRequest{
 		Model: "openai/gpt-oss-120b",

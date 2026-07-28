@@ -2,6 +2,7 @@ package bot
 
 import (
 	"log"
+	"time"
 
 	"gopkg.in/telebot.v3"
 	"gorm.io/gorm"
@@ -22,6 +23,10 @@ func init() {
 	b = initTelegram(conf.TelegramKey)
 
 	initMonitor()
+
+	prices = initPrices()
+
+	time.Sleep(time.Second * 3)
 
 	go startRssMonitor()
 }
