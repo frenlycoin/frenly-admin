@@ -9,10 +9,11 @@ import (
 
 // Config stores configuration vars
 type Config struct {
-	Dev         bool   `yaml:"dev"`
-	TelegramKey string `yaml:"telegram_key"`
-	DbURI       string `yaml:"db_uri"`
-	GroqAPIKey  string `yaml:"groq_api_key"`
+	Dev              bool   `yaml:"dev"`
+	TelegramKey      string `yaml:"telegram_key"`
+	DbURI            string `yaml:"db_uri"`
+	GroqAPIKey       string `yaml:"groq_api_key"`
+	FreeCryptoAPIKey string `yaml:"freecrypto_api_key"`
 }
 
 // Load method loads configuration file to Config struct

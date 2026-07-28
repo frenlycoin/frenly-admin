@@ -22,6 +22,8 @@ func init() {
 	b = initTelegram(conf.TelegramKey)
 
 	initMonitor()
+
+	go startRssMonitor()
 }
 
 func Start() {
