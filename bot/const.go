@@ -12,4 +12,7 @@ const (
 
 	// Telegram channel ID for TON news updates.
 	FrenlyTon = int64(-1002478203272)
+
+	// Telegram channel ID for crypto news.
+	FrenlyCrypto = int64(-1004461913187)
 )

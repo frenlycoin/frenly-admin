@@ -26,6 +26,7 @@ func (m *Monitor) start() {
 func (m *Monitor) generateAdminPostsIfNeeded() {
 	m.generateDevPostsIfNeeded()
 	m.generateTonPostsIfNeeded()
+	m.generateCryptoPostsIfNeeded()
 }
 
 func (m *Monitor) generateDevPostsIfNeeded() {
@@ -96,6 +97,40 @@ func (m *Monitor) generateTonPostsIfNeeded() {
 	}
 }
 
+func (m *Monitor) generateCryptoPostsIfNeeded() {
+	lastDay, err := getLastPostDay("lastFrenlyCryptoPost")
+	if err != nil {
+		logs(fmt.Sprintf("failed to load last FrenlyCrypto post day: %v", err))
+		return
+	}
+
+	today := time.Now().UTC().Format("2006-01-02")
+	if lastDay == today {
+		return
+	}
+
+	news, err := getCryptoNews()
+	if err != nil {
+		logs(fmt.Sprintf("failed to generate crypto news: %v", err))
+		return
+	}
+
+	posts := strings.Split(news, "\n\n")
+	for _, post := range posts {
+		trimmed := strings.TrimSpace(post)
+		if trimmed == "" {
+			continue
+		}
+		if err := db.Create(&AdminPost{Channel: FrenlyCrypto, Text: trimmed}).Error; err != nil {
+			logs(fmt.Sprintf("failed to save crypto admin post: %v", err))
+		}
+	}
+
+	if err := saveLastPostDay("lastFrenlyCryptoPost", today); err != nil {
+		logs(fmt.Sprintf("failed to save last FrenlyCrypto post day: %v", err))
+	}
+}
+
 func getLastPostDay(key string) (string, error) {
 	var kv KeyValue
 	res := db.Where("key = ?", key).First(&kv)
@@ -153,7 +188,7 @@ func (m *Monitor) publishPendingTodayPostsOnStartup() {
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
-	channels := []int64{FrenlyDevs, FrenlyTon}
+	channels := []int64{FrenlyDevs, FrenlyTon, FrenlyCrypto}
 	for _, ch := range channels {
 		var post AdminPost
 		res := db.Where("channel = ? AND published = ? AND created_at >= ? AND created_at < ?", ch, false, dayStart, dayEnd).First(&post)
@@ -176,7 +211,7 @@ func (m *Monitor) publishAdminPostsIfNeeded() {
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
-	channels := []int64{FrenlyDevs, FrenlyTon}
+	channels := []int64{FrenlyDevs, FrenlyTon, FrenlyCrypto}
 	for _, ch := range channels {
 		var posts []AdminPost
 		if err := db.Where("channel = ? AND published = ? AND created_at >= ? AND created_at < ?", ch, false, dayStart, dayEnd).Find(&posts).Error; err != nil {
