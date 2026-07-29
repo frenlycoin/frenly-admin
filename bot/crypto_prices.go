@@ -46,18 +46,20 @@ func initPrices() *PricesManager {
 }
 
 func (p *PricesManager) start() {
-	// Sleep until the start of the next hour (00 minutes)
+	// Sleep until the start of the next 3-hour mark (00, 03, 06, 09, 12, 15, 18, 21 UTC)
 	now := time.Now()
-	next := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC)
-	if now.After(next) {
-		next = next.Add(time.Hour)
+	nextHour := now.Hour()
+	nextHour = nextHour - (nextHour % 3) + 3
+	next := time.Date(now.Year(), now.Month(), now.Day(), nextHour, 0, 0, 0, time.UTC)
+	if !now.Before(next) {
+		next = next.Add(3 * time.Hour)
 	}
 	time.Sleep(time.Until(next))
 
 	for {
 		p.fetch()
 		p.publish()
-		time.Sleep(time.Hour)
+		time.Sleep(3 * time.Hour)
 	}
 }
 
@@ -108,8 +110,6 @@ func (p *PricesManager) fetch() {
 			p.Prices = append(p.Prices, CryptoPrice{Symbol: sym, Last: last})
 		}
 	}
-
-	logs("Crypto prices updated successfully")
 }
 
 func formatPrice(price string) string {
