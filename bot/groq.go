@@ -111,6 +111,48 @@ func getLifeAdvice() (string, error) {
 	return groqResp.Choices[0].Message.Content, nil
 }
 
+func getDailyHoroscope() (string, error) {
+	reqBody := GroqRequest{
+		Model: "llama-3.3-70b-versatile",
+		Messages: []Message{
+			{Role: "system", Content: "You are an astrologer. Provide daily horoscope for each zodiac sign. Keep each horoscope around 40-50 words. Be diverse and creative."},
+			{Role: "user", Content: "Give me daily horoscope for all 12 zodiac signs (Aries, Taurus, Gemini, Cancer, Leo, Virgo, Libra, Scorpio, Sagittarius, Capricorn, Aquarius, Pisces) in 12 separate paragraphs. Start each paragraph with the sign name followed by colon. Each horoscope should be around 40-50 words."},
+		},
+		Temperature: 0.8,
+		MaxTokens:   1500,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", "https://api.groq.com/openai/v1/chat/completions", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+conf.GroqAPIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var groqResp GroqResponse
+	if err := json.NewDecoder(resp.Body).Decode(&groqResp); err != nil {
+		return "", err
+	}
+
+	if len(groqResp.Choices) == 0 {
+		return "", fmt.Errorf("empty response from API")
+	}
+
+	return groqResp.Choices[0].Message.Content, nil
+}
+
 func getProgrammingAdvice() (string, error) {
 	reqBody := GroqRequest{
 		Model: "openai/gpt-oss-120b",

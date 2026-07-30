@@ -2,6 +2,7 @@ package bot
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ func (m *Monitor) generateAdminPostsIfNeeded() {
 	m.generateDevPostsIfNeeded()
 	m.generateTonPostsIfNeeded()
 	m.generateLifePostsIfNeeded()
+	m.generateHoroscopePostsIfNeeded()
 }
 
 func (m *Monitor) generateDevPostsIfNeeded() {
@@ -94,6 +96,42 @@ func (m *Monitor) generateLifePostsIfNeeded() {
 
 	if err := saveLastPostDay("lastFrenlyLifePost", today); err != nil {
 		logs(fmt.Sprintf("failed to save last FrenlyLife post day: %v", err))
+	}
+}
+
+func (m *Monitor) generateHoroscopePostsIfNeeded() {
+	lastDay, err := getLastPostDay("lastFrenlyAstroPost")
+	if err != nil {
+		logs(fmt.Sprintf("failed to load last FrenlyAstro post day: %v", err))
+		return
+	}
+
+	today := time.Now().UTC().Format("2006-01-02")
+	if lastDay == today {
+		return
+	}
+
+	horoscopes, err := getDailyHoroscope()
+	if err != nil {
+		logs(fmt.Sprintf("failed to generate daily horoscope: %v", err))
+		return
+	}
+
+	log.Printf("Generated horoscopes:\n%s", horoscopes)
+
+	posts := strings.Split(horoscopes, "\n\n")
+	for _, post := range posts {
+		trimmed := strings.TrimSpace(post)
+		if trimmed == "" {
+			continue
+		}
+		if err := db.Create(&AdminPost{Channel: FrenlyAstro, Text: trimmed}).Error; err != nil {
+			logs(fmt.Sprintf("failed to save horoscope admin post: %v", err))
+		}
+	}
+
+	if err := saveLastPostDay("lastFrenlyAstroPost", today); err != nil {
+		logs(fmt.Sprintf("failed to save last FrenlyAstro post day: %v", err))
 	}
 }
 
@@ -188,7 +226,7 @@ func (m *Monitor) publishPendingTodayPostsOnStartup() {
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
-	channels := []int64{FrenlyDevs, FrenlyTon, FrenlyLife}
+	channels := []int64{FrenlyDevs, FrenlyTon, FrenlyLife, FrenlyAstro}
 	for _, ch := range channels {
 		var post AdminPost
 		res := db.Where("channel = ? AND published = ? AND created_at >= ? AND created_at < ?", ch, false, dayStart, dayEnd).First(&post)
@@ -258,9 +296,55 @@ func (m *Monitor) publishAdminPostsRoutine() {
 	}
 }
 
+func (m *Monitor) publishHoroscopeRoutine() {
+	// Sleep until the next 2-hour mark at a random minute between 30-59
+	now := time.Now()
+	nextHour := now.Hour()
+	nextHour = nextHour - (nextHour % 2) + 2
+	rand.Seed(now.UnixNano())
+	randomMinute := 30 + rand.Intn(30) // 30-59
+	next := time.Date(now.Year(), now.Month(), now.Day(), nextHour, randomMinute, 0, 0, time.UTC)
+	if !now.Before(next) {
+		next = next.Add(2 * time.Hour)
+	}
+	time.Sleep(time.Until(next))
+
+	for {
+		m.publishHoroscopeIfNeeded()
+		rand.Seed(time.Now().UnixNano())
+		randomMinute = 30 + rand.Intn(30)
+		next = next.Add(2 * time.Hour)
+		next = time.Date(next.Year(), next.Month(), next.Day(), next.Hour(), randomMinute, 0, 0, time.UTC)
+		time.Sleep(time.Until(next))
+	}
+}
+
+func (m *Monitor) publishHoroscopeIfNeeded() {
+	now := time.Now().UTC()
+	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	dayEnd := dayStart.Add(24 * time.Hour)
+
+	var posts []AdminPost
+	if err := db.Where("channel = ? AND published = ? AND created_at >= ? AND created_at < ?", FrenlyAstro, false, dayStart, dayEnd).Find(&posts).Error; err != nil {
+		logs(fmt.Sprintf("failed to load pending horoscope posts: %v", err))
+		return
+	}
+
+	if len(posts) == 0 {
+		return
+	}
+
+	rand.Seed(now.UnixNano())
+	chosen := posts[rand.Intn(len(posts))]
+	if err := m.publishAdminPost(chosen, now); err != nil {
+		logs(fmt.Sprintf("failed to publish horoscope post: %v", err))
+	}
+}
+
 func initMonitor() *Monitor {
 	m := &Monitor{}
 	go m.start()
 	go m.publishAdminPostsRoutine()
+	go m.publishHoroscopeRoutine()
 	return m
 }
