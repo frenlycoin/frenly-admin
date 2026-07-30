@@ -2,7 +2,6 @@ package bot
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"strings"
 	"time"
@@ -116,8 +115,6 @@ func (m *Monitor) generateHoroscopePostsIfNeeded() {
 		logs(fmt.Sprintf("failed to generate daily horoscope: %v", err))
 		return
 	}
-
-	log.Printf("Generated horoscopes:\n%s", horoscopes)
 
 	posts := strings.Split(horoscopes, "\n\n")
 	for _, post := range posts {
@@ -341,10 +338,37 @@ func (m *Monitor) publishHoroscopeIfNeeded() {
 	}
 }
 
+func (m *Monitor) publishPositiveNewsRoutine() {
+	rand.Seed(time.Now().UnixNano())
+	delay := time.Hour + time.Duration(rand.Int63n(int64(time.Hour)))
+	time.Sleep(delay)
+
+	for {
+		m.publishPositiveNews()
+		rand.Seed(time.Now().UnixNano())
+		delay = time.Hour + time.Duration(rand.Int63n(int64(time.Hour)))
+		time.Sleep(delay)
+	}
+}
+
+func (m *Monitor) publishPositiveNews() {
+	news, err := getPositiveNewsPost()
+	if err != nil {
+		logs(fmt.Sprintf("failed to generate positive news: %v", err))
+		return
+	}
+
+	rec := &telebot.Chat{ID: FrenlyNews}
+	if _, err := b.Send(rec, news, telebot.NoPreview); err != nil {
+		logs(fmt.Sprintf("failed to publish positive news: %v", err))
+	}
+}
+
 func initMonitor() *Monitor {
 	m := &Monitor{}
 	go m.start()
 	go m.publishAdminPostsRoutine()
 	go m.publishHoroscopeRoutine()
+	go m.publishPositiveNewsRoutine()
 	return m
 }

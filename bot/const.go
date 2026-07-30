@@ -22,6 +22,9 @@ const (
 	// Telegram channel ID for astrology content.
 	FrenlyAstro = int64(-1004424053340)
 
+	// Telegram channel ID for positive news posts.
+	FrenlyNews = int64(-1001717915246)
+
 	// Space-separated list of cryptocurrency symbols to track for price updates.
 	CryptoPrices = "BTC ETH BNB XRP SOL TRX HYPE DOGE LEO ZEC XMR XLM ADA CC BCH GRAM LTC HBAR AVAX SUI"
 )

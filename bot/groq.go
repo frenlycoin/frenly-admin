@@ -153,6 +153,48 @@ func getDailyHoroscope() (string, error) {
 	return groqResp.Choices[0].Message.Content, nil
 }
 
+func getPositiveNewsPost() (string, error) {
+	reqBody := GroqRequest{
+		Model: "llama-3.3-70b-versatile",
+		Messages: []Message{
+			{Role: "system", Content: "You are a very positive and optimistic journalist who only reports uplifting, feel-good recent news. Keep each news item 40-50 words. Make it fun and funny to read. Be diverse and cover different topics."},
+			{Role: "user", Content: "Give me one very recent positive news.It should be 40-50 words and fun/funny to read. Focus on recent uplifting events, breakthroughs, heartwarming stories, and funny moments. Don't provide titles."},
+		},
+		Temperature: 0.8,
+		MaxTokens:   1000,
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", "https://api.groq.com/openai/v1/chat/completions", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+conf.GroqAPIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var groqResp GroqResponse
+	if err := json.NewDecoder(resp.Body).Decode(&groqResp); err != nil {
+		return "", err
+	}
+
+	if len(groqResp.Choices) == 0 {
+		return "", fmt.Errorf("empty response from API")
+	}
+
+	return groqResp.Choices[0].Message.Content, nil
+}
+
 func getProgrammingAdvice() (string, error) {
 	reqBody := GroqRequest{
 		Model: "openai/gpt-oss-120b",
